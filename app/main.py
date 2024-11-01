@@ -1,13 +1,15 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.v1.router import api_router
+from app.api.auth import router as auth_router
 from app.core.config import settings
+from app.models.base import Base
+from app.database.session import engine
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
     version="1.0.0",
-    description="FastAPI Auth Service with JWT and Weather API integration"
+    description="FastAPI Auth Service with JWT Authentication"
 )
 
 # CORS middleware configuration
@@ -19,5 +21,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Create database tables
+Base.metadata.create_all(bind=engine)
+
 # Include routers
-app.include_router(api_router, prefix=settings.API_V1_STR)
+app.include_router(auth_router, prefix="/auth", tags=["authentication"])
