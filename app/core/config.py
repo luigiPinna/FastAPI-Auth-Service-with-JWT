@@ -1,24 +1,17 @@
 from typing import List
 from pydantic_settings import BaseSettings
-from pydantic import AnyHttpUrl, validator
+from pydantic import computed_field
 
 
 class Settings(BaseSettings):
     # Base
-    PROJECT_NAME: str = "FastAPI Auth Service"
-    VERSION: str = "1.0.0"
-    API_V1_STR: str = "/api/v1"
+    PROJECT_NAME: str
+    VERSION: str
+    API_V1_STR: str
+    DEBUG: bool
 
-    # CORS
-    BACKEND_CORS_ORIGINS: List[AnyHttpUrl] = []
-
-    @validator("BACKEND_CORS_ORIGINS", pre=True)
-    def assemble_cors_origins(cls, v: str | List[str]) -> List[str] | str:
-        if isinstance(v, str) and not v.startswith("["):
-            return [i.strip() for i in v.split(",")]
-        elif isinstance(v, (list, str)):
-            return v
-        raise ValueError(v)
+    # CORS - deve arrivare dal .env
+    BACKEND_CORS_ORIGINS: str
 
     # JWT
     SECRET_KEY: str
@@ -31,17 +24,34 @@ class Settings(BaseSettings):
     POSTGRES_USER: str
     POSTGRES_PASSWORD: str
     POSTGRES_DB: str
-    DATABASE_URL: str | None = None
 
-    @validator("DATABASE_URL", pre=True)
-    def assemble_db_url(cls, v: str | None, values: dict) -> str:
-        if isinstance(v, str):
-            return v
-        return f"postgresql://{values.get('POSTGRES_USER')}:{values.get('POSTGRES_PASSWORD')}@{values.get('POSTGRES_SERVER')}/{values.get('POSTGRES_DB')}"
+    @computed_field
+    @property
+    def DATABASE_URL(self) -> str:
+        """URL database calcolato automaticamente"""
+        return (
+            f"postgresql://{self.POSTGRES_USER}:"
+            f"{self.POSTGRES_PASSWORD}@"
+            f"{self.POSTGRES_SERVER}/"
+            f"{self.POSTGRES_DB}"
+        )
 
-    class Config:
-        case_sensitive = True
-        env_file = ".env"
+    @computed_field
+    @property
+    def CORS_ORIGINS_LIST(self) -> List[str]:
+        """Lista origins CORS pulita"""
+        return [origin.strip() for origin in self.BACKEND_CORS_ORIGINS.split(",")]
+
+    # Rate Limiting
+    RATE_LIMIT_ENABLED: bool = True
+    RATE_LIMIT_REQUESTS: int = 100
+    RATE_LIMIT_MINUTES: int = 1
+
+    model_config = {
+        "case_sensitive": True,
+        "env_file": ".env",
+        "extra": "forbid"
+    }
 
 
 settings = Settings()

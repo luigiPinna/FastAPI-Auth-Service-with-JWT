@@ -1,36 +1,34 @@
-version: '3.8'
+FROM python:3.11-slim
 
-services:
-  web:
-    build: .
-    ports:
-      - "8000:8000"
-    env_file:
-      - .env
-    depends_on:
-      - db
-      - redis
-    networks:
-      - app-network
+# Imposta variabili d'ambiente
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/app
 
-  db:
-    image: postgres:13
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    environment:
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - POSTGRES_DB=${POSTGRES_DB}
-    networks:
-      - app-network
+# Installa dipendenze di sistema
+RUN apt-get update && apt-get install -y \
+    gcc \
+    libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
 
-  redis:
-    image: redis:6-alpine
-    networks:
-      - app-network
+# Crea directory di lavoro
+WORKDIR /app
 
-volumes:
-  postgres_data:
+# Copia e installa dipendenze Python
+COPY requirements.txt .
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
 
-networks:
-  app-network:
+# Copia il codice dell'applicazione
+COPY ./app ./app
+
+# Crea utente non-root per sicurezza
+RUN adduser --disabled-password --gecos '' appuser && \
+    chown -R appuser:appuser /app
+USER appuser
+
+# Esponi la porta
+EXPOSE 8000
+
+# Comando di avvio
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
