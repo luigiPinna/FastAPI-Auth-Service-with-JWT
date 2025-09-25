@@ -12,7 +12,7 @@ from app.database.session import get_db
 from app.models.user import User
 from app.models.token import BlacklistedToken
 from app.schemas.user import UserCreate, UserResponse
-from app.schemas.token import Token, TokenData, TokenResponse
+from app.schemas.token import Token, TokenData, TokenResponse, RefreshTokenRequest
 
 router = APIRouter()
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
@@ -200,13 +200,13 @@ async def login(
 
 @router.post("/refresh", response_model=Token)
 async def refresh_token(
-        db: Session = Depends(get_db),
-        token: str = Depends(oauth2_scheme)
+        refresh_request: RefreshTokenRequest,
+        db: Session = Depends(get_db)
 ) -> Any:
     """Rinnova l'access token usando il refresh token"""
     try:
         # Verifica il refresh token
-        token_data = verify_token(token, "refresh")
+        token_data = verify_token(refresh_request.refresh_token, "refresh")
 
         # Cerca l'utente
         user = db.query(User).filter(User.email == token_data.email).first()
